@@ -4,7 +4,7 @@ Solution for PingCAP's [TP 201: Practical Networked Applications in Rust](https:
 
 #### [PNA Rust — Building Blocks 2](https://github.com/kafji/talent-plan/blob/master/courses/rust/building-blocks/bb-2.md)
 
-- [ ] Reading: Damn Cool Algorithms: Log structured storage
+- [x] Reading: Damn Cool Algorithms: Log structured storage
 - [ ] Reading: The Design and Implementation of a Log-Structured File System
 - [ ] Reading: Bitcask: A Log-Structured Hash Table for Fast Key/Value Data
 - [ ] Reading: Error Handling in Rust
