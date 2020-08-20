@@ -11,5 +11,5 @@ Solution for PingCAP's [TP 201: Practical Networked Applications in Rust](https:
 - [x] Reading: std::collections
 - [x] Reading: std::io
 - [x] Exercise: Serialize and deserialize a data structure with serde (JSON)
-- [ ] Exercise: Serialize and deserialize a data structure to a buffer with serde (RON)
+- [x] Exercise: Serialize and deserialize a data structure to a buffer with serde (RON)
 - [ ] Exercise: Serialize and deserialize 1000 data structures with serde (BSON)
