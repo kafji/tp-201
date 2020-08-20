@@ -6,7 +6,7 @@ Solution for PingCAP's [TP 201: Practical Networked Applications in Rust](https:
 
 - [x] Reading: Damn Cool Algorithms: Log structured storage
 - [5/15] Reading: The Design and Implementation of a Log-Structured File System
-- [ ] Reading: Bitcask: A Log-Structured Hash Table for Fast Key/Value Data
+- [x] Reading: Bitcask: A Log-Structured Hash Table for Fast Key/Value Data
 - [x] Reading: Error Handling in Rust
 - [x] Reading: std::collections
 - [x] Reading: std::io
