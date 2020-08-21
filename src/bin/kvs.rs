@@ -1,4 +1,6 @@
 use clap::Clap;
+use kvs::{KvStore, Result};
+use std::{path::Path, process::exit};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -14,6 +16,8 @@ enum SubCommand {
     Get(Get),
     Set(Set),
     Rm(Rm),
+    #[clap(about = "Show all entries")]
+    List,
 }
 
 #[derive(Clap)]
@@ -39,17 +43,38 @@ struct Rm {
     key: String,
 }
 
-fn main() {
+fn main() -> Result<()> {
+    let mut store = KvStore::open(Path::new("./"))?;
+
     let opts = Opts::parse();
     match opts.subcmd {
-        SubCommand::Get(_) => {
-            panic!("unimplemented");
-        }
-        SubCommand::Set(_) => {
-            panic!("unimplemented");
-        }
-        SubCommand::Rm(_) => {
-            panic!("unimplemented");
+        SubCommand::Get(get) => match store.get(get.key)? {
+            Some(value) => {
+                println!("{}", value);
+                Ok(())
+            }
+            None => {
+                println!("Key not found");
+                Ok(())
+            }
+        },
+        SubCommand::Set(set) => store.set(set.key, set.value),
+        SubCommand::Rm(rm) => match store.remove(rm.key) {
+            Ok(_) => Ok(()),
+            Err(error) => match error {
+                kvs::Error::KeyNotFound => {
+                    println!("Key not found");
+                    exit(1);
+                }
+                _ => Err(error),
+            },
+        },
+        SubCommand::List => {
+            let entries = store.list()?;
+            for (key, value) in entries {
+                println!("{} -> {}", key, value);
+            }
+            Ok(())
         }
     }
 }
