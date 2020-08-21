@@ -4,10 +4,10 @@ Solution for PingCAP's [TP 201: Practical Networked Applications in Rust](https:
 
 ### [PNA Rust Project 2: Log-structured file I/O](https://github.com/kafji/talent-plan/blob/master/courses/rust/projects/project-2/README.md)
 
-- [ ] Introduction
-- [ ] Terminology
-- [ ] Project spec
-- [ ] Project setup
+- [x] Introduction
+- [x] Terminology
+- [x] Project spec
+- [x] Project setup
 - [ ] Part 1: Error handling
 - [ ] Part 2: How the log behaves
 - [ ] Part 3: Writing to the log
