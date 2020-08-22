@@ -102,6 +102,11 @@ impl KvStore {
             value,
         });
 
+        // TODO(KFJ):
+        //   Q: Should I use buffer here?
+        //   Q: What happen if I write it directly? Is there any performance impact?
+        //   Q: Or would it be better if I keep and use a single buffer through-out the session?
+        //   Next topic is about benchmarking. ~I should~Hopefully can answer it by then.
         let mut writer = BufWriter::new(&self.log_file);
         // Move pointer/offset to the end of file
         let offset = writer.seek(SeekFrom::End(0))?;
