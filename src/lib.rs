@@ -2,15 +2,18 @@
 #![feature(with_options)]
 
 mod command;
+mod compaction;
+mod index;
 mod serialization;
 
 use command::*;
+use index::build_index;
 use serialization::Serializable;
 use std::{
     collections::HashMap,
     fs::File,
     io::{self, BufReader, SeekFrom},
-    io::{BufRead, BufWriter, Seek},
+    io::{BufWriter, Seek},
     path::PathBuf,
 };
 use thiserror::Error;
@@ -23,11 +26,17 @@ pub enum Error {
     #[error(transparent)]
     Serialization(#[from] serialization::Error),
 
+    #[error("Path is not a directory")]
+    InvalidPath,
+
     #[error("Key does not exists")]
     KeyNotFound,
 
     #[error("Index is desynced/corrupted")]
     IndexDesynced,
+
+    #[error("TODO")]
+    TODO,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -48,26 +57,39 @@ pub type Result<T> = std::result::Result<T, Error>;
   - index file - The on-disk representation of the in-memory index. Without this the log would need to be completely replayed to restore the state of the in-memory index each time the database is started.
 */
 
+#[derive(Debug)]
 pub struct KvStore {
-    log: File,
+    directory: PathBuf,
+    log_file: File,
     index: HashMap<String, u64>,
 }
 
 impl KvStore {
     pub fn open(path: impl Into<PathBuf>) -> Result<Self> {
-        let path: PathBuf = {
-            let mut p = path.into();
+        let directory: PathBuf = path.into();
+
+        if !directory.is_dir() {
+            return Err(Error::InvalidPath);
+        }
+
+        let log_file_path: PathBuf = {
+            let mut p = directory.clone();
             p.push("log");
             p
         };
-        let log = File::with_options()
-            .read(true)
-            .append(true)
+        let log_file = File::with_options()
             .create(true)
-            .open(path)?;
-        let mut reader = BufReader::new(&log);
-        let index = Self::build_index(&mut reader)?;
-        let store = KvStore { log, index };
+            .read(true)
+            .write(true)
+            .open(&log_file_path)?;
+
+        let mut reader = BufReader::new(&log_file);
+        let index = build_index(&mut reader)?;
+        let store = KvStore {
+            directory,
+            log_file,
+            index,
+        };
         Ok(store)
     }
 
@@ -79,16 +101,24 @@ impl KvStore {
             key: key.clone(),
             value,
         });
-        let mut writer = BufWriter::new(&self.log);
 
+        let mut writer = BufWriter::new(&self.log_file);
         // Move pointer/offset to the end of file
-        let offset = writer.seek(io::SeekFrom::End(0))?;
-
+        let offset = writer.seek(SeekFrom::End(0))?;
         // Append log
-        command.serialize_into(&mut writer)?;
+        command.serialize_into(writer)?;
+        self.log_file.sync_data()?;
 
         // Update index
         self.index.insert(key, offset);
+
+        let size = self.log_file.seek(SeekFrom::End(0))?;
+        let one_mb = 1024 * 1024;
+        if size > one_mb {
+            compaction::compact(&mut self.log_file, &self.index)?;
+            let mut reader = BufReader::new(&self.log_file);
+            self.index = build_index(&mut reader)?;
+        }
 
         Ok(())
     }
@@ -101,7 +131,7 @@ impl KvStore {
             None => return Ok(None),
         };
 
-        let mut reader = BufReader::new(&self.log);
+        let mut reader = BufReader::new(&self.log_file);
 
         // Move pointer/cursor to offset
         reader.seek(SeekFrom::Start(offset))?;
@@ -121,13 +151,13 @@ impl KvStore {
         }
 
         let command = Command::Rm(Rm { key: key.clone() });
-        let mut writer = BufWriter::new(&self.log);
 
+        let mut writer = BufWriter::new(&self.log_file);
         // Move pointer/offset to the end of file
-        writer.seek(io::SeekFrom::End(0))?;
-
+        writer.seek(SeekFrom::End(0))?;
         // Append log
         command.serialize_into(&mut writer)?;
+        self.log_file.sync_data()?;
 
         // Update index
         self.index.remove(&key);
@@ -147,95 +177,5 @@ impl KvStore {
             }
         }
         Ok(entries)
-    }
-
-    fn build_index<T>(reader: &mut T) -> Result<HashMap<String, u64>>
-    where
-        T: BufRead + Seek,
-    {
-        let mut index = HashMap::new();
-        loop {
-            let offset = reader.stream_position()?;
-
-            // Check EOF
-            let buf = reader.fill_buf()?;
-            if buf.is_empty() {
-                break;
-            }
-
-            let command: Command = Command::deserialize_from(&mut *reader)?;
-            match command {
-                Command::Set(set) => {
-                    index.insert(set.key, offset);
-                }
-                Command::Rm(rm) => {
-                    index.remove(&rm.key);
-                }
-            };
-        }
-        Ok(index)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-    use std::io::Cursor;
-
-    #[test]
-    fn test_build_index() {
-        let commands: Vec<Command> = vec![
-            Command::Set(Set {
-                key: "key0".to_owned(),
-                value: "value0".to_owned(),
-            }),
-            Command::Set(Set {
-                key: "key1".to_owned(),
-                value: "value1".to_owned(),
-            }),
-            Command::Set(Set {
-                key: "key2".to_owned(),
-                value: "value2".to_owned(),
-            }),
-            Command::Rm(Rm {
-                key: "key2".to_owned(),
-            }),
-            Command::Set(Set {
-                key: "key3".to_owned(),
-                value: "value3".to_owned(),
-            }),
-            Command::Set(Set {
-                key: "key3".to_owned(),
-                value: "value33".to_owned(),
-            }),
-        ];
-        let mut serialized = Vec::new();
-        for cmd in commands.iter() {
-            cmd.serialize_into(&mut serialized).unwrap();
-        }
-
-        let mut reader = Cursor::new(&serialized);
-        let index = KvStore::build_index(&mut reader).unwrap();
-
-        assert_eq!(index.get("key0"), Some(&0));
-
-        let size = {
-            let mut buf = Vec::new();
-            commands.get(0).unwrap().serialize_into(&mut buf).unwrap();
-            buf.len() as u64
-        };
-        assert_eq!(index.get("key1"), Some(&size));
-
-        assert_eq!(index.get("key2"), None);
-
-        let size = {
-            let mut buf = Vec::new();
-            for cmd in &commands[0..5] {
-                cmd.serialize_into(&mut buf).unwrap();
-            }
-            buf.len() as u64
-        };
-        assert_eq!(index.get("key3"), Some(&size));
     }
 }

@@ -14,4 +14,4 @@ Solution for PingCAP's [TP 201: Practical Networked Applications in Rust](https:
 - [x] Part 4: Reading from the log
 - [x] Part 5: Storing log pointers in the index
 - [x] Part 6: Stateless vs. stateful KvStore
-- [ ] Part 7: Compacting the log
+- [x] Part 7: Compacting the log
