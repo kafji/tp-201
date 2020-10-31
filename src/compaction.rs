@@ -29,7 +29,7 @@ pub fn compact(log_file: &mut File, log_index: &HashMap<String, u64>) -> Result<
     for cmd in commands.iter() {
         cmd.serialize_into(&mut writer)?;
     }
-    let size = writer.stream_position()?;
+    let size = writer.seek(SeekFrom::Current(0))?;
 
     log_file.set_len(size)?;
     log_file.sync_data()?;

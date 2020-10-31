@@ -1,6 +1,3 @@
-#![feature(seek_convenience)]
-#![feature(with_options)]
-
 mod command;
 mod compaction;
 mod index;
@@ -11,7 +8,7 @@ use index::build_index;
 use serialization::Serializable;
 use std::{
     collections::HashMap,
-    fs::File,
+    fs::{File, OpenOptions},
     io::{self, BufReader, SeekFrom},
     io::{BufWriter, Seek},
     path::PathBuf,
@@ -77,7 +74,7 @@ impl KvStore {
             p.push("log");
             p
         };
-        let log_file = File::with_options()
+        let log_file = OpenOptions::new()
             .create(true)
             .read(true)
             .write(true)

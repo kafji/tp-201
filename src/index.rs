@@ -12,7 +12,7 @@ where
     reader.seek(SeekFrom::Start(0))?;
     let mut index = HashMap::new();
     loop {
-        let offset = reader.stream_position()?;
+        let offset = reader.seek(SeekFrom::Current(0))?;
 
         // Check EOF
         let buf = reader.fill_buf()?;
