@@ -7,7 +7,7 @@ Solution for PingCAP's [TP 201: Practical Networked Applications in Rust](https:
 - [ ] Reading: log crate API
 - [ ] Reading: slog crate API
 - [ ] Reading: Benefits of Structured Logging vs basic logging
-- [ ] Reading: Redis Protocol specification
+- [x] Reading: Redis Protocol specification
 - [x] Exercise: Write a Redis ping-pong client and server using std::io
 - [ ] Exercise: Write a Redis ping-pong client and server with serialized messages
 - [ ] Reading: Statistically Rigorous Java Performance Evaluation.
