@@ -71,7 +71,7 @@ impl KvStore {
 
         let log_file_path: PathBuf = {
             let mut p = directory.clone();
-            p.push("log");
+            p.push("log.kvs");
             p
         };
         let log_file = OpenOptions::new()
