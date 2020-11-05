@@ -2,6 +2,7 @@ mod command;
 mod compaction;
 mod index;
 mod serialization;
+mod server;
 
 use command::*;
 use index::build_index;
@@ -14,6 +15,8 @@ use std::{
     path::PathBuf,
 };
 use thiserror::Error;
+
+pub use server::KvsServer;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -183,8 +186,6 @@ impl KvStore {
 }
 
 pub struct KvsClient;
-
-pub struct KvsServer;
 
 pub trait KvsEngine {
     /// Set the value of a string key to a string. Return an error if the value is not written

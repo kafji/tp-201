@@ -7,6 +7,9 @@ edition = "2018"
 [dependencies]
 bincode = "1.3"
 clap = "3.0.0-beta"
+slog = "2.5"
+slog-async = "2.5"
+slog-term = "2.6"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 
