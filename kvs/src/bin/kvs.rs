@@ -1,8 +1,7 @@
 use clap::Clap;
+use kvs::*;
 use kvs::{KvStore, Result};
 use std::{path::Path, process::exit};
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Clap)]
 #[clap(version=VERSION)]

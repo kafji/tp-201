@@ -1,8 +1,10 @@
+pub mod client;
 mod command;
 mod compaction;
 mod index;
 mod serialization;
-mod server;
+pub mod server;
+pub mod app;
 
 use command::*;
 use index::build_index;
@@ -16,7 +18,12 @@ use std::{
 };
 use thiserror::Error;
 
+pub use client::KvsClient;
 pub use server::KvsServer;
+
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const DEFAULT_ADDR: &str = "127.0.0.1:4000";
+pub const DEFAULT_ENGINE: &str = "kvs";
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -184,8 +191,6 @@ impl KvStore {
         Ok(entries)
     }
 }
-
-pub struct KvsClient;
 
 pub trait KvsEngine {
     /// Set the value of a string key to a string. Return an error if the value is not written

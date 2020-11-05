@@ -1,13 +1,13 @@
 use clap::Clap;
+use kvs::{app::logger, client::KvsClient, *};
 use kvs::{KvStore, Result};
-use std::{path::Path, process::exit};
-
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+use slog::{info, o};
+use std::{net::SocketAddr, path::Path, process::exit};
 
 #[derive(Clap)]
 #[clap(version=VERSION)]
 struct Opts {
-    #[clap()]
+    #[clap(long, default_value = DEFAULT_ADDR)]
     addr: String,
     #[clap(subcommand)]
     subcmd: SubCommand,
@@ -46,6 +46,23 @@ struct Rm {
 }
 
 fn main() -> Result<()> {
+    let opts: Opts = Opts::parse();
+    let addr: SocketAddr = opts.addr.parse().unwrap();
+    let log = slog::Logger::root(
+        logger::drain(),
+        o! { "version" => VERSION, "address" => addr },
+    );
+    info!(log, "starting");
+    let config = kvs::client::Configuration {
+        addr: opts.addr.parse().unwrap(),
+    };
+    let client = KvsClient::new(log, config);
+    client.connect()?;
+
+    if true {
+        return Ok(());
+    }
+
     let mut store = KvStore::open(Path::new("./"))?;
 
     let opts = Opts::parse();
