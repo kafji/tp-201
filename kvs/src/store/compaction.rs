@@ -1,4 +1,5 @@
-use super::{command::Command, serialization::Serializable, Error, Result};
+use super::{command::Command, KvStoreError};
+use crate::serialization::Serializable;
 use std::{
     collections::HashMap,
     fs::File,
@@ -10,7 +11,7 @@ use std::{
 ///
 /// Compact log by overwriting the log file with known valid entries from log index.
 /// `log_file` must have read and write access.
-pub fn compact(log_file: &mut File, log_index: &HashMap<String, u64>) -> Result<()> {
+pub fn compact(log_file: &mut File, log_index: &HashMap<String, u64>) -> Result<(), super::KvStoreError> {
     let mut reader = BufReader::new(&*log_file);
     let mut commands = Vec::with_capacity(log_index.len());
     for (_, &offset) in log_index.iter() {
@@ -20,7 +21,7 @@ pub fn compact(log_file: &mut File, log_index: &HashMap<String, u64>) -> Result<
             Command::Set(_) => {
                 commands.push(command);
             }
-            _ => return Err(Error::IndexDesynced),
+            _ => return Err(KvStoreError::IndexDesynced),
         }
     }
 
@@ -41,7 +42,7 @@ pub fn compact(log_file: &mut File, log_index: &HashMap<String, u64>) -> Result<
 mod tests {
 
     use super::*;
-    use crate::{command::*, index::build_index};
+    use crate::store::{command::*, index::build_index};
 
     #[test]
     fn test_compact() {

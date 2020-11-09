@@ -1,13 +1,13 @@
 use clap::Clap;
-use kvs::{app::logger, client::KvsClient, *};
-use kvs::{KvStore, Result};
+use kvs::KvStore;
+use kvs::{app::logger, client::KvsClient, DEFAULT_ADDR, VERSION};
 use slog::{info, o};
-use std::{net::SocketAddr, path::Path, process::exit};
+use std::{error, net::SocketAddr, path::Path, process::exit};
 
 #[derive(Clap)]
 #[clap(version=VERSION)]
 struct Opts {
-    #[clap(long, default_value = DEFAULT_ADDR)]
+    #[clap(long, default_value = DEFAULT_ADDR, global = true)]
     addr: String,
     #[clap(subcommand)]
     subcmd: SubCommand,
@@ -18,8 +18,6 @@ enum SubCommand {
     Get(Get),
     Set(Set),
     Rm(Rm),
-    #[clap(about = "Show all entries")]
-    List,
 }
 
 #[derive(Clap)]
@@ -45,55 +43,35 @@ struct Rm {
     key: String,
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let log = slog::Logger::root(slog::Discard, o!("version" => VERSION));
+
     let opts: Opts = Opts::parse();
-    let addr: SocketAddr = opts.addr.parse().unwrap();
-    let log = slog::Logger::root(
-        logger::drain(),
-        o! { "version" => VERSION, "address" => addr },
-    );
-    info!(log, "starting");
-    let config = kvs::client::Configuration {
-        addr: opts.addr.parse().unwrap(),
-    };
-    let client = KvsClient::new(log, config);
-    client.connect()?;
 
-    if true {
-        return Ok(());
-    }
+    let address = opts
+        .addr
+        .parse::<SocketAddr>()
+        .map_err(|_| format!("failed to parse addr `{}`", opts.addr))?;
 
-    let mut store = KvStore::open(Path::new("./"))?;
+    info!(log, "starting"; "address" => address);
 
-    let opts = Opts::parse();
+    let mut client = KvsClient::new(log, address)?;
+
     match opts.subcmd {
-        SubCommand::Get(get) => match store.get(get.key)? {
-            Some(value) => {
-                println!("{}", value);
-                Ok(())
+        SubCommand::Get(Get { key }) => {
+            let v = client.get(key)?;
+            match v {
+                Some(v) => println!("{}", v),
+                None => println!("Key not found"),
             }
-            None => {
-                println!("Key not found");
-                Ok(())
-            }
-        },
-        SubCommand::Set(set) => store.set(set.key, set.value),
-        SubCommand::Rm(rm) => match store.remove(rm.key) {
-            Ok(_) => Ok(()),
-            Err(error) => match error {
-                kvs::Error::KeyNotFound => {
-                    println!("Key not found");
-                    exit(1);
-                }
-                _ => Err(error),
-            },
-        },
-        SubCommand::List => {
-            let entries = store.list()?;
-            for (key, value) in entries {
-                println!("{} -> {}", key, value);
-            }
-            Ok(())
+        }
+        SubCommand::Set(Set { key, value }) => {
+            client.set(key, value)?;
+        }
+        SubCommand::Rm(Rm { key }) => {
+            client.rm(key)?;
         }
     }
+
+    Ok(())
 }

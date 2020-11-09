@@ -1,11 +1,11 @@
-use super::{serialization::Serializable, Result};
-use crate::command::Command;
+use super::command::Command;
+use super::serialization::Serializable;
 use std::{
     collections::HashMap,
     io::{BufRead, Seek, SeekFrom},
 };
 
-pub fn build_index<T>(reader: &mut T) -> Result<HashMap<String, u64>>
+pub fn build_index<T>(reader: &mut T) -> Result<HashMap<String, u64>, super::KvStoreError>
 where
     T: BufRead + Seek,
 {
@@ -37,7 +37,7 @@ where
 mod tests {
 
     use super::*;
-    use crate::command::*;
+    use crate::store::command::*;
     use std::io::Cursor;
 
     #[test]

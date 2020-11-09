@@ -1,6 +1,5 @@
 use clap::Clap;
-use kvs::*;
-use kvs::{KvStore, Result};
+use kvs::{KvStore, VERSION};
 use std::{path::Path, process::exit};
 
 #[derive(Clap)]
@@ -42,7 +41,7 @@ struct Rm {
     key: String,
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut store = KvStore::open(Path::new("./"))?;
 
     let opts = Opts::parse();
@@ -50,22 +49,20 @@ fn main() -> Result<()> {
         SubCommand::Get(get) => match store.get(get.key)? {
             Some(value) => {
                 println!("{}", value);
-                Ok(())
             }
             None => {
                 println!("Key not found");
-                Ok(())
             }
         },
-        SubCommand::Set(set) => store.set(set.key, set.value),
+        SubCommand::Set(set) => store.set(set.key, set.value)?,
         SubCommand::Rm(rm) => match store.remove(rm.key) {
-            Ok(_) => Ok(()),
+            Ok(_) => {}
             Err(error) => match error {
-                kvs::Error::KeyNotFound => {
+                kvs::store::KvStoreError::KeyNotFound { .. } => {
                     println!("Key not found");
                     exit(1);
                 }
-                _ => Err(error),
+                _ => Err(error)?,
             },
         },
         SubCommand::List => {
@@ -73,7 +70,8 @@ fn main() -> Result<()> {
             for (key, value) in entries {
                 println!("{} -> {}", key, value);
             }
-            Ok(())
         }
     }
+
+    Ok(())
 }
