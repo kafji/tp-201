@@ -4,27 +4,27 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 #[error(transparent)]
-pub struct Error(Box<dyn std::error::Error + Send + Sync>);
+pub struct SerializationError(Box<dyn std::error::Error + Send + Sync>);
 
-impl From<bincode::Error> for Error {
+impl From<bincode::Error> for SerializationError {
     fn from(value: bincode::Error) -> Self {
         Self(Box::new(value))
     }
 }
 
-impl From<io::Error> for Error {
+impl From<io::Error> for SerializationError {
     fn from(value: io::Error) -> Self {
         Self(Box::new(value))
     }
 }
 
 pub trait Serialization<'a>: DeserializeOwned + Serialize {
-    fn to_writer(&self, writer: &mut impl io::Write) -> Result<(), Error> {
+    fn to_writer(&self, writer: &mut impl io::Write) -> Result<(), SerializationError> {
         bincode::serialize_into(writer, &self)?;
         Ok(())
     }
 
-    fn from_reader(reader: &mut impl io::Read) -> Result<Option<Self>, Error> {
+    fn from_reader(reader: &mut impl io::Read) -> Result<Option<Self>, SerializationError> {
         let value = match bincode::deserialize_from::<_, Self>(reader) {
             Ok(v) => Some(v),
             Err(err) => match *err {

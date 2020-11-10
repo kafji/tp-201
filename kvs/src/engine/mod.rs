@@ -16,9 +16,26 @@ pub trait KvsEngine {
 
     /// Get the string value of a string key. If the key does not exists, return `None`. Return an
     /// error if the value is not read successfully.
-    fn get(&mut self, key: String) -> Result<Option<String>, KvsEngineError>;
+    fn get(&mut self, key: &str) -> Result<Option<String>, KvsEngineError>;
 
     /// Remove a given string key. Return an error if the key does not exit or value is not read
     /// successfully.
-    fn remove(&mut self, key: impl AsRef<str>) -> Result<(), KvsEngineError>;
+    fn remove(&mut self, key: &str) -> Result<(), KvsEngineError>;
+}
+
+impl<T> KvsEngine for Box<T>
+where
+    T: KvsEngine + ?Sized,
+{
+    fn set(&mut self, key: String, value: String) -> Result<(), KvsEngineError> {
+        (self as &mut T).set(key, value)
+    }
+
+    fn get(&mut self, key: &str) -> Result<Option<String>, KvsEngineError> {
+        (self as &mut T).get(key)
+    }
+
+    fn remove(&mut self, key: &str) -> Result<(), KvsEngineError> {
+        (self as &mut T).remove(key)
+    }
 }

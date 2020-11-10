@@ -1,8 +1,7 @@
 use clap::Clap;
-use kvs::KvStore;
-use kvs::{app::logger, client::KvsClient, DEFAULT_ADDR, VERSION};
+use kvs::{client::KvsClient, DEFAULT_ADDR, VERSION};
 use slog::{info, o};
-use std::{error, net::SocketAddr, path::Path, process::exit};
+use std::net::SocketAddr;
 
 #[derive(Clap)]
 #[clap(version=VERSION)]

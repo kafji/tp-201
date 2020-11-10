@@ -1,8 +1,7 @@
 use super::HandleRequest;
 use crate::{
-    protocol::Response,
-    protocol::{Request, Serialization},
-    KvsEngine,
+    protocol::{Request, Response, Serialization, SerializationError},
+    KvsEngineError,
 };
 use nix::{
     sys::{
@@ -22,18 +21,17 @@ use std::{
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum Error {
+pub enum ServerError {
+    #[error("failed to bind socket, caused by {0}")]
+    BindSocketError(io::Error),
+    #[error("failed to accept connection, caused by {0}")]
+    AcceptConnectionError(io::Error),
     #[error(transparent)]
     Sys(#[from] nix::Error),
-
     #[error(transparent)]
-    Engine(#[from] crate::store::KvStoreError),
-
-    #[error(transparent)]
-    Io(#[from] io::Error),
-
-    #[error("TODO")]
-    Other,
+    Engine(#[from] KvsEngineError),
+    #[error("failed to write response, caused by {0}")]
+    ResponseError(#[from] SerializationError),
 }
 
 #[derive(FromPrimitive, Debug)]
@@ -58,20 +56,23 @@ impl KvsServer {
     pub fn new(
         log: impl Into<Option<Logger>>,
         address: impl Into<SocketAddr>,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, ServerError> {
         let log = log.into().unwrap_or_else(|| Logger::root(Discard, o!()));
 
         debug!(log, "binding TCP listener");
         let addr = address.into();
-        let listener = TcpListener::bind(addr)?;
-        // Blocking for request mechanism is handled by epoll.
-        listener.set_nonblocking(true)?;
+        let listener = {
+            fn error_mapper(error: io::Error) -> ServerError {
+                ServerError::BindSocketError(error)
+            }
+            let listener = TcpListener::bind(addr).map_err(error_mapper)?;
+            // Blocking for request mechanism is handled by epoll.
+            listener.set_nonblocking(true).map_err(error_mapper)?;
+            listener
+        };
 
         debug!(log, "creating signal eventfd");
         let signal_fd = eventfd(0, EfdFlags::empty())?;
-
-        // debug!(log, "creating engine");
-        // let engine = Box::new(KvStore::open(Path::new("./"))?);
 
         let server = Self {
             log,
@@ -81,7 +82,7 @@ impl KvsServer {
         Ok(server)
     }
 
-    pub fn listen(&self, handler: &mut impl HandleRequest) -> Result<(), Error> {
+    pub fn listen(&self, handler: &mut impl HandleRequest) -> Result<(), ServerError> {
         // Alias self.log so it's easier to cascade logger.
         let log = &self.log;
 
@@ -136,7 +137,10 @@ impl KvsServer {
                 match PollId::from_u64(event.data()) {
                     Some(PollId::Listener) => {
                         debug!(log, "incoming connection received");
-                        let (mut stream, peer) = self.listener.accept()?;
+                        let (mut stream, peer) = self
+                            .listener
+                            .accept()
+                            .map_err(|x| ServerError::AcceptConnectionError(x))?;
                         let log = log.new(o!("peer" => peer));
 
                         info!(log, "connected");
@@ -147,10 +151,9 @@ impl KvsServer {
                             match request {
                                 Ok(Some(request)) => {
                                     info!(log, "received request"; "request" => ?request);
-                                    let response =
-                                        handler.handle(&log, request).map_err(|_| Error::Other)?;
+                                    let response = handler.handle(&log, request)?;
                                     info!(log, "sending response"; "response" => ?response);
-                                    response.to_writer(&mut stream).map_err(|_| Error::Other)?;
+                                    response.to_writer(&mut stream)?;
                                 }
                                 Ok(None) => {
                                     debug!(log, "received eof");
@@ -160,7 +163,7 @@ impl KvsServer {
                                     error!(log, "received invalid request"; "error" => %err);
                                     let response = Response::Failure("invalid request".to_owned());
                                     info!(log, "sending response"; "response" => ?response);
-                                    response.to_writer(&mut stream).map_err(|_| Error::Other)?;
+                                    response.to_writer(&mut stream)?;
                                 }
                             };
 
@@ -174,9 +177,7 @@ impl KvsServer {
                         debug!(log, "shutdown signal receieved");
                         shutdown = true;
                     }
-                    None => {
-                        return Err(Error::Other);
-                    }
+                    None => unimplemented!(),
                 }
             }
             if shutdown {
@@ -191,7 +192,7 @@ impl KvsServer {
     ///
     /// Probably only used in testing. Required to cleanup test.
     #[cfg(test)]
-    fn shutdown(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn shutdown(&self) -> Result<(), ServerError> {
         unistd::write(self.signal_fd, &1u64.to_ne_bytes())?;
         Ok(())
     }

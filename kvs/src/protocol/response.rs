@@ -1,9 +1,17 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Eq, PartialEq, Deserialize, Serialize, Clone, Debug)]
 pub enum Response {
     Success(Option<String>),
     Failure(String),
+}
+
+impl fmt::Display for Response {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[cfg(test)]

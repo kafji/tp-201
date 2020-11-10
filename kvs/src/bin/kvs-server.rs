@@ -31,8 +31,9 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     info!(log, "starting"; "address" => address, "engine" => %engine_opt);
 
-    let mut engine = match engine_opt {
-        Engine::KVS => kvs::KvStore::open("./")?,
+    let mut engine: Box<dyn kvs::KvsEngine> = match engine_opt {
+        Engine::KVS => Box::new(kvs::KvStore::open("./")?),
+        Engine::Sled => Box::new(sled::open("./")?),
     };
     let server = KvsServer::new(log, address)?;
     server.listen(&mut engine)?;
@@ -43,6 +44,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 #[derive(Clone, Debug)]
 pub enum Engine {
     KVS,
+    Sled,
 }
 
 impl Default for Engine {
@@ -57,6 +59,7 @@ impl std::str::FromStr for Engine {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let engine = match s.to_lowercase().as_ref() {
             "kvs" => Engine::KVS,
+            "sled" => Engine::Sled,
             other => return Err(format!("unknown engine `{}`", other).into()),
         };
         Ok(engine)
@@ -67,6 +70,7 @@ impl fmt::Display for Engine {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Engine::KVS => write!(f, "kvs"),
+            Engine::Sled => write!(f, "sled"),
         }
     }
 }

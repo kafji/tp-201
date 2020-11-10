@@ -1,5 +1,5 @@
+use super::serialization::Serializable;
 use super::{command::Command, KvStoreError};
-use crate::serialization::Serializable;
 use std::{
     collections::HashMap,
     fs::File,
@@ -11,7 +11,10 @@ use std::{
 ///
 /// Compact log by overwriting the log file with known valid entries from log index.
 /// `log_file` must have read and write access.
-pub fn compact(log_file: &mut File, log_index: &HashMap<String, u64>) -> Result<(), super::KvStoreError> {
+pub fn compact(
+    log_file: &mut File,
+    log_index: &HashMap<String, u64>,
+) -> Result<(), super::KvStoreError> {
     let mut reader = BufReader::new(&*log_file);
     let mut commands = Vec::with_capacity(log_index.len());
     for (_, &offset) in log_index.iter() {

@@ -1,2 +1,9 @@
 /target
+
+# KvStore
 log.kvs
+
+# Sled
+conf
+db
+snap.*

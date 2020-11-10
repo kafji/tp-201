@@ -1,14 +1,13 @@
 mod command;
 mod compaction;
 mod index;
+mod serialization;
 
+use crate::KvsEngine;
 use crate::KvsEngineError;
-use crate::{
-    serialization::{self, Serializable},
-    KvsEngine,
-};
 use command::*;
 use index::build_index;
+use serialization::Serializable;
 use std::{
     collections::HashMap,
     fs::{File, OpenOptions},
@@ -190,25 +189,21 @@ impl KvsEngine for KvStore {
         Ok((self as &mut KvStore).set(key, value)?)
     }
 
-    fn get(&mut self, key: String) -> Result<Option<String>, KvsEngineError> {
-        Ok((self as &KvStore).get(key)?)
+    fn get(&mut self, key: &str) -> Result<Option<String>, KvsEngineError> {
+        Ok((self as &KvStore).get(key.to_owned())?)
     }
 
-    fn remove(&mut self, key: impl AsRef<str>) -> Result<(), KvsEngineError> {
+    fn remove(&mut self, key: &str) -> Result<(), KvsEngineError> {
         // TODO(kfj): Change store::remove signature to accept borrowed string.
-        Ok((self as &mut KvStore).remove(key.as_ref().to_owned())?)
+        Ok((self as &mut KvStore).remove(key.to_owned())?)
     }
 }
 
 impl From<KvStoreError> for KvsEngineError {
     fn from(value: KvStoreError) -> Self {
         match value {
-            KvStoreError::Io(_) => KvsEngineError::Other(Box::new(value)),
-            KvStoreError::Serialization(_) => KvsEngineError::Other(Box::new(value)),
-            KvStoreError::InvalidPath => KvsEngineError::Other(Box::new(value)),
             KvStoreError::KeyNotFound { key } => KvsEngineError::EntryNotFound { key },
-            KvStoreError::IndexDesynced => KvsEngineError::Other(Box::new(value)),
-            KvStoreError::TODO => KvsEngineError::Other(Box::new(value)),
+            _ => KvsEngineError::Other(Box::new(value)),
         }
     }
 }

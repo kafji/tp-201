@@ -1,14 +1,11 @@
-use slog::{debug, error, Logger};
-
 use crate::{
     protocol::{Request, Response},
     KvsEngine, KvsEngineError,
 };
+use slog::{debug, error, Logger};
 
 pub trait HandleRequest {
-    type Error;
-
-    fn handle(&mut self, log: &Logger, request: Request) -> Result<Response, Self::Error>;
+    fn handle(&mut self, log: &Logger, request: Request) -> Result<Response, KvsEngineError>;
 }
 
 // I love how composable Rust is.
@@ -16,9 +13,7 @@ impl<T> HandleRequest for T
 where
     T: KvsEngine + ?Sized,
 {
-    type Error = anyhow::Error;
-
-    fn handle(&mut self, log: &Logger, request: Request) -> Result<Response, Self::Error> {
+    fn handle(&mut self, log: &Logger, request: Request) -> Result<Response, KvsEngineError> {
         match request {
             Request::Set { key, value } => {
                 let result = self.set(key, value);
@@ -30,7 +25,7 @@ where
             }
             Request::Get { key } => {
                 debug!(log, "GET request");
-                let result = self.get(key);
+                let result = self.get(&key);
                 let response = match result {
                     Ok(v) => Response::Success(v),
                     Err(e) => Response::Failure(e.to_string()),
